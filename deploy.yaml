@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind	    : Deployment
+metadata    :
+ name       : nginx-deployment
+spec:
+ replicas    : 1
+ selector    :
+  matchLabels:
+   app       : nginx
+ template :
+  metadata:
+   labels :
+    app   : nginx
+  spec:
+   containers:
+   - name: nginx
+     image: highlire1/test-nginx:1.0.12
+     ports:
+     - containerPort: 80
+     env:
+     - name: POD_NAME
+       valueFrom:
+        fieldRef:
+         fieldPath: metadata.name
+     - name: CONTAINER_NAME
+       value: "GIGA CONTAINER). Because hostname in container pick up from pod hostname"
