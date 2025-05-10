@@ -1,0 +1,65 @@
+name: CI/CD Pipeline
+on: [push]
+
+env:
+  LOG_FILE: log.txt
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    services:
+      docker:
+        image: docker:dind
+        options: --privileged
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup environment
+      run: |
+        mkdir -p /usr/local/share/ca-certificates/extra && cp ./tls.crt /usr/local/share/ca-certificates/extra/tls.crt
+        update-ca-certificates
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update && apt-get install -y ca-certificates curl docker.io gettext gnupg
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
+        install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+    - name: Build Docker image
+      run: |
+        echo "Starting building..." >> $LOG_FILE
+        openssl s_client -connect www.google.com:443
+        echo "Проверяем ssl сертификаты..."
+        curl -I https://www.google.com
+        echo "Проверили успешно. Билдим контейнер..."
+        docker build -t test-nginx:$GITHUB_RUN_ID .
+        echo "Building Successfully!" >> $LOG_FILE
+        echo "Посмотрим какие есть images:"
+        docker images
+    - name: Upload logs
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-artifacts
+        path: |
+          ${{ env.LOG_FILE }}
+          ${{ env.DOCKER_HOST }}
+          ${{ env.DOCKER_DRIVER }}
+          ${{ env.DOCKER_TLS_CERTDIR }}
+          
+  deploy:
+      needs: build
+      runs-on: ubuntu-latest
+      steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v3
+        with:
+          name: build-artifacts
+      - name: Deploy to Kubernetes
+        run: |
+          echo "Deploying application..." >> $LOG_FILE
+          kubectl config use-context docker-desktop
+          kubectl set image deployment/nginx-deployment nginx=test-nginx:$GITHUB_RUN_ID
+          echo "Application successfully deployed." >> $LOG_FILE
+          cat $LOG_FILE
+        
