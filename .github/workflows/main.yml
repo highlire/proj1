@@ -45,6 +45,6 @@ jobs:
         $ErrorActionPreference = "Stop"
         echo "Deploying application..." >> $env:LOG_FILE
         kubectl config use-context docker-desktop
-        kubectl set image deployment/nginx-deployment nginx=test-nginx:${{ github.run_id }}
+        kubectl set image -n proj1 deployment/nginx-deployment nginx=test-nginx:${{ github.run_id }}
         echo "Application successfully deployed." >> $env:LOG_FILE
         type $env:LOG_FILE
