@@ -3,63 +3,47 @@ on: [push]
 
 env:
   LOG_FILE: log.txt
-  DOCKER_HOST: tcp://docker:2375
-  DOCKER_DRIVER: overlay2
-  DOCKER_TLS_CERTDIR: ""
 
 jobs:
-
   build:
     runs-on: self-hosted
-    services:
-      docker:
-        image: docker:dind
-        options: --privileged
     steps:
-    - uses: actions/checkout@v4
-    - name: Setup environment
-      run: |
-        mkdir -p /usr/local/share/ca-certificates/extra && cp ./tls.crt /usr/local/share/ca-certificates/extra/tls.crt
-        update-ca-certificates
-        export DEBIAN_FRONTEND=noninteractive
-        apt-get update && apt-get install -y ca-certificates curl docker.io gettext gnupg
-        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
-        install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
     - name: Build Docker image
+      shell: pwsh
       run: |
-        echo "Starting building..." >> $LOG_FILE
-        openssl s_client -connect www.google.com:443
-        echo "Проверяем ssl сертификаты..."
-        curl -I https://www.google.com
-        echo "Проверили успешно. Билдим контейнер..."
-        docker build -t test-nginx:$GITHUB_RUN_ID .
-        echo "Building Successfully!" >> $LOG_FILE
-        echo "Посмотрим какие есть images:"
-        docker images
-    - name: Upload logs
+        echo "Starting building..." >> $env:LOG_FILE
+        curl.exe -I https://www.google.com
+        echo "Проверили интернет. Билдим контейнер..." >> $env:LOG_FILE
+        docker build -t test-nginx:${{ github.run_id }} .
+        echo "Building Successfully!" >> $env:LOG_FILE
+        docker images >> $env:LOG_FILE
+
+    - name: Upload log file
       uses: actions/upload-artifact@v4
       with:
         name: build-artifacts
-        path: |
-          ${{ env.LOG_FILE }}
-          ${{ env.DOCKER_HOST }}
-          ${{ env.DOCKER_DRIVER }}
-          ${{ env.DOCKER_TLS_CERTDIR }}
-          
+        path: ${{ env.LOG_FILE }}
+
   deploy:
-      needs: build
-      runs-on: self-hosted
-      steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: build-artifacts
-      - name: Deploy to Kubernetes
-        run: |
-          echo "Deploying application..." >> $LOG_FILE
-          kubectl config use-context docker-desktop
-          kubectl set image deployment/nginx-deployment nginx=test-nginx:$GITHUB_RUN_ID
-          echo "Application successfully deployed." >> $LOG_FILE
-          cat $LOG_FILE
-        
+    needs: build
+    runs-on: self-hosted
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Download build logs
+      uses: actions/download-artifact@v4
+      with:
+        name: build-artifacts
+
+    - name: Deploy to Kubernetes
+      shell: pwsh
+      run: |
+        echo "Deploying application..." >> $env:LOG_FILE
+        kubectl config use-context docker-desktop
+        kubectl set image deployment/nginx-deployment nginx=test-nginx:${{ github.run_id }}
+        echo "Application successfully deployed." >> $env:LOG_FILE
+        type $env:LOG_FILE
