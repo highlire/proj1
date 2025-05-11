@@ -15,8 +15,6 @@ jobs:
       shell: pwsh
       run: |
         echo "Starting building..." >> $env:LOG_FILE
-        curl.exe -I https://www.google.com
-        echo "Проверили интернет. Билдим контейнер..." >> $env:LOG_FILE
         docker build -t test-nginx:${{ github.run_id }} .
         echo "Building Successfully!" >> $env:LOG_FILE
         docker images >> $env:LOG_FILE
