@@ -42,6 +42,7 @@ jobs:
     - name: Deploy to Kubernetes
       shell: pwsh
       run: |
+        $ErrorActionPreference = "Stop"
         echo "Deploying application..." >> $env:LOG_FILE
         kubectl config use-context docker-desktop
         kubectl set image deployment/nginx-deployment nginx=test-nginx:${{ github.run_id }}
