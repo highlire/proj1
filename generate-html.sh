@@ -38,7 +38,7 @@ cat > /usr/share/nginx/html/index.html <<EOF
     <h1>Pod name: ${POD_NAME}</h1>
   </div>
   <div class="box">
-    <h2>And</h2>
+    <h2>And...</h2>
   </div>
   <div class="box">
     <h3>Container name: ${CONTAINER_NAME}</h3>
