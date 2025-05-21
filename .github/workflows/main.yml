@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 on: [push]
 
 env:
-  LOG_FILE: /tmp/log.txt
+  LOG_FILE: ${{ github.workspace }}/log.txt
 
 jobs:
   build:
@@ -36,10 +36,10 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: build-logs
-        path: ./
+        path: ${{ github.workspace }}/
 
     - name: Deploy to Kubernetes
-      shell: pwsh
+      shell: bash
       run: |
         $ErrorActionPreference = "Stop"
         echo "Deploying application..." >> $env:LOG_FILE
