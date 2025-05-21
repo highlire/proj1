@@ -1,29 +1,28 @@
 name: CI/CD Pipeline
 on: [push]
 
-env:
-  LOG_FILE: ${{ github.workspace }}/log.txt
-
 jobs:
   build:
     runs-on: self-hosted
+    outputs:
+      log-content: ${{ steps.log-collector.outputs.log-content }}
     steps:
     - name: Checkout repo
       uses: actions/checkout@v4
 
     - name: Build Docker image
+      id: build
       shell: bash
       run: |
-        echo "Starting building..." >> $env:LOG_FILE
-        docker build -t test-nginx:${{ github.run_id }} .
-        echo "Building Successfully!" >> $env:LOG_FILE
-        docker images >> $env:LOG_FILE
-
-    - name: Upload log file
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-logs
-        path: ${{ env.LOG_FILE }}
+        LOG_FILE="${{ github.workspace }}/log.txt"
+        echo "Starting building..." > $LOG_FILE
+        docker build -t test-nginx:${{ github.run_id }} . && \
+          echo "Building Successfully!" >> $LOG_FILE || \
+          echo "Building Failed!" >> $LOG_FILE
+        docker images >> $LOG_FILE
+        
+        # Сохраняем содержимое лога в output
+        echo "log-content=$(cat $LOG_FILE | jq -sR)" >> $GITHUB_OUTPUT
 
   deploy:
     needs: build
@@ -32,21 +31,28 @@ jobs:
     - name: Checkout repo
       uses: actions/checkout@v4
 
-    - name: Download build logs
-      uses: actions/download-artifact@v4
-      with:
-        name: build-logs
-        path: ${{ github.workspace }}/
+    - name: Restore logs
+      shell: bash
+      run: |
+        LOG_FILE="${{ github.workspace }}/log.txt"
+        echo "${{ needs.build.outputs.log-content }}" | jq -r > $LOG_FILE
+        echo "=== Build Stage Logs ==="
+        cat $LOG_FILE
 
     - name: Deploy to Kubernetes
       shell: bash
       run: |
-        $ErrorActionPreference = "Stop"
-        echo "Deploying application..." >> $env:LOG_FILE
+        LOG_FILE="${{ github.workspace }}/log.txt"
+        echo "Deploying application..." >> $LOG_FILE
         kubectl config use-context microk8s
-        kubectl apply -n proj1 -f ./deploy.yaml
+        kubectl apply -n proj1 -f ./deploy.yaml && \
+          echo "Deploy applied" >> $LOG_FILE || \
+          echo "Deploy failed" >> $LOG_FILE
         kubectl apply -n proj1 -f ./ingress.yaml
         kubectl apply -n proj1 -f ./service.yaml
-        kubectl set image -n proj1 deployment/nginx-deployment nginx=test-nginx:${{ github.run_id }}
-        echo "Application successfully deployed." >> $env:LOG_FILE
-        type $env:LOG_FILE
+        kubectl set image -n proj1 deployment/nginx-deployment nginx=test-nginx:${{ github.run_id }} && \
+          echo "Image updated" >> $LOG_FILE || \
+          echo "Image update failed" >> $LOG_FILE
+        
+        echo "=== Final Log ==="
+        cat $LOG_FILE
