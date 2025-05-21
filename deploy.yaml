@@ -14,7 +14,8 @@ spec:
   spec:
    containers:
    - name: nginx
-     image: highlire1/test-nginx:1.0.12
+     image: test-nginx:15169475467
+     imagePullPolicy: Never
      ports:
      - containerPort: 80
      env:
