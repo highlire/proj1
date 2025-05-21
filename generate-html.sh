@@ -44,7 +44,7 @@ cat > /usr/share/nginx/html/index.html <<EOF
     <h3>Container name: ${CONTAINER_NAME}</h3>
   </div>
   <div class="footer">
-    <h4>Generated dynamically by Docker container!</h4>
+    <h4>Generated dynamically by Docker container!!!</h4>
   </div>
 </body>
 </html>
